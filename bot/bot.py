@@ -1,6 +1,7 @@
 from worker import celery
 import celery.states as states
 from celery.task import task
+import uuid
 
 import logging
 
@@ -25,7 +26,7 @@ def start(update, context):
         text='''Ciao! I'm Babbage, worker bot sitting in MiB-Fisica secret lab. Send me task!!''')
 
     
-def send_update(chat_id, task_id):
+def send_update(chat_id, task_id, session_id):
     def update(context):
         bot = context.bot
         job = context.job
@@ -33,15 +34,26 @@ def send_update(chat_id, task_id):
         if res.state == states.PENDING:
             bot.send_message(chat_id=chat_id,text= "Waiting..")
         else:
-            bot.send_message(chat_id=chat_id,text= "Done! {}".format(res.result))
+            bot.send_message(chat_id=chat_id,
+                            text= "Done (session={})! {}".format(session_id, res.result))
             job.schedule_removal()
 
     return update
 
 
 def incoming_job_message(update, context):
-    task = celery.send_task('start_job',  kwargs={"conf_url":update.message.text})
-    j.run_repeating(send_update(update.message.chat_id, task.id), interval=5, first=2)
+    
+    chat_id  = update.message.chat.id
+    # Create a unique session id using the telegram message information
+    session_id = hash(str(update))
+    task = celery.send_task('start_job',  
+            kwargs={
+                    "user": update.message.chat.username,
+                    "session": session_id, 
+                    "conf_url":update.message.text
+                    })
+    context.bot.send_message(chat_id=chat_id, text="Started session: {}".format(session_id))
+    j.run_repeating(send_update(chat_id, task.id, session_id), interval=5, first=2)
 
 
 start_handler = CommandHandler('start', start)

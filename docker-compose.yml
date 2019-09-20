@@ -6,6 +6,7 @@ services:
       dockerfile: Dockerfile
     volumes:
       - ./bot:/bot
+      - /storage:/storage
     restart: always
     depends_on:
       - redis
@@ -15,6 +16,7 @@ services:
       dockerfile: Dockerfile
     volumes:
       - ./celery-queue:/celery-queue
+      - /storage:/storage
     depends_on:
       - redis
   monitor:
