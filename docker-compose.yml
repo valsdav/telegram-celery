@@ -2,10 +2,10 @@ version: "3"
 services:
   bot:
     build:
-      context: ./api
+      context: ./bot
       dockerfile: Dockerfile
     volumes:
-      - ./api:/api
+      - ./bot:/bot
     restart: always
     depends_on:
       - redis
@@ -13,12 +13,17 @@ services:
     build:
       context: celery-queue
       dockerfile: Dockerfile
+    volumes:
+      - ./celery-queue:/celery-queue
     depends_on:
       - redis
   monitor:
     build:
       context: celery-queue
       dockerfile: Dockerfile
+    volumes:
+      - ./celery-queue:/celery-queue
+      - /var/run/docker.sock:/var/run/docker.sock 
     ports:
      - "5555:5555"
     entrypoint: flower

@@ -18,4 +18,4 @@ EXPOSE 5001
 
 
 # run the app server
-CMD ["python", "/api/app.py"]
+CMD ["python", "/bot/bot.py"]
