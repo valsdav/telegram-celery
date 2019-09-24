@@ -17,6 +17,7 @@ services:
     volumes:
       - ./celery-queue:/celery-queue
       - /storage:/storage
+      - /var/run/docker.sock:/var/run/docker.sock 
     depends_on:
       - redis
   monitor:
@@ -25,7 +26,6 @@ services:
       dockerfile: Dockerfile
     volumes:
       - ./celery-queue:/celery-queue
-      - /var/run/docker.sock:/var/run/docker.sock 
     ports:
      - "5555:5555"
     entrypoint: flower

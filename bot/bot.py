@@ -44,13 +44,14 @@ def send_update(chat_id, task_id, session_id):
 def incoming_job_message(update, context):
     
     chat_id  = update.message.chat.id
+    message = update.message
     # Create a unique session id using the telegram message information
-    session_id = hash(str(update))
+    session_id = "{:%y%m%d}-{}-{}-{}".format(message.date, message.chat.username,chat_id, message.message_id)
     task = celery.send_task('start_job',  
             kwargs={
-                    "user": update.message.chat.username,
+                    "user":  message.chat.username,
                     "session": session_id, 
-                    "conf_url":update.message.text
+                    "conf_url": message.text
                     })
     context.bot.send_message(chat_id=chat_id, text="Started session: {}".format(session_id))
     j.run_repeating(send_update(chat_id, task.id, session_id), interval=5, first=2)
@@ -64,3 +65,33 @@ dispatcher.add_handler(start_handler)
 dispatcher.add_handler(incoming_job_handler)
 
 updater.start_polling()
+
+
+## UPDATE FORMAT
+# {
+#     'update_id': 851612875, 
+#     'message': {
+    #     'message_id': 374, 
+    #     'date': 1569326696, 
+    #     'chat': {
+    #             'id': 102616251, 
+    #             'type': 'private', 
+    #             'username': 'valsdav',
+    #             'first_name': 'Davide',
+    #             'last_name': 'Valsecchi'},
+    #      'text': 'https://dvalsecc.web.cern.ch/dvalsecc/TrainingBot/conf.yaml', 
+    #      'entities': [{'type': 'url', 'offset': 0, 'length': 59}],
+    #      'caption_entities': [], 
+    #      'photo': [], 
+    #      'new_chat_members': [],
+    #      'new_chat_photo': [], 
+    #      'delete_chat_photo': False, 
+    #      'group_chat_created': False, 
+    #      'supergroup_chat_created': False, 
+    #      'channel_chat_created': False, 
+    #      'from': {
+    #             'id': 102616251, 'first_name': 'Davide', 
+    #             'is_bot': False, 'last_name': 'Valsecchi', 
+    #             'username': 'valsdav', 'language_code': 'it'}
+#     }
+# }
