@@ -13,9 +13,7 @@ COPY ./requirements.txt .
 # install requirements
 RUN pip3 install -r requirements.txt
 
-# expose the app port
-EXPOSE 5001
+WORKDIR /bot
 
-
-# run the app server
-CMD ["python", "/bot/bot.py"]
+# run the bot
+ENTRYPOINT python bot.py

@@ -2,6 +2,8 @@ from worker import celery
 import celery.states as states
 from celery.task import task
 import uuid
+import json
+from functools import wraps
 
 import logging
 
@@ -14,12 +16,33 @@ from telegram.ext import MessageHandler, Filters
 from telegram.ext import BaseFilter
 from telegram import MessageEntity
 
+conf = json.loads(open("./config.json","r").read())
 
-
-updater = Updater(token='730560174:AAEj4aQyCeLQK8RuS8QYqHvEdYI_0jO32t4', use_context=True)
+updater = Updater(token=conf["bot"]["token"], use_context=True)
 dispatcher = updater.dispatcher
 j = updater.job_queue
 
+##############################
+# Utils
+
+def save_config(context):
+    logging.info("Saving configuration on file")
+    json.dump(conf, open("./config.json","w"), indent=2)
+
+j.run_repeating(save_config, interval=10, first=10)
+
+def restricted(func):
+    @wraps(func)
+    def wrapped(update, context, *args, **kwargs):
+        user_id = update.effective_user.id
+        if user_id not in conf["users"]["admins"]:
+            print("Unauthorized access denied for {}.".format(user_id))
+            return
+        return func(update, context, *args, **kwargs)
+    return wrapped
+
+################################################################à
+# Handlers
         
 def start(update, context):
     context.bot.send_message(chat_id=update.message.chat_id,
@@ -42,7 +65,6 @@ def send_update(chat_id, task_id, session_id):
 
 
 def incoming_job_message(update, context):
-    
     chat_id  = update.message.chat.id
     message = update.message
     # Create a unique session id using the telegram message information
@@ -56,12 +78,24 @@ def incoming_job_message(update, context):
     context.bot.send_message(chat_id=chat_id, text="Started session: {}".format(session_id))
     j.run_repeating(send_update(chat_id, task.id, session_id), interval=5, first=2)
 
+@restricted
+def add_user(update, context):
+    userid = context.args[0]
+    conf["users"]["users"].append(userid)
+    context.bot.send_message(chat_id=update.message.chat_id, 
+                text=f"Added user {userid}")
+
+
+########################################
+# Handlers
 
 start_handler = CommandHandler('start', start)
-incoming_job_handler = MessageHandler(Filters.text, incoming_job_message)
-
+adduser_handler = CommandHandler('adduser', add_user)
+incoming_job_handler = MessageHandler(Filters.text & (Filters.entity(MessageEntity.URL) |
+                        Filters.entity(MessageEntity.TEXT_LINK)), incoming_job_message)
 
 dispatcher.add_handler(start_handler)
+dispatcher.add_handler(adduser_handler)
 dispatcher.add_handler(incoming_job_handler)
 
 updater.start_polling()
