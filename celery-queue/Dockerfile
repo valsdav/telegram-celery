@@ -10,4 +10,4 @@ RUN pip install -r requirements.txt
  
 WORKDIR /celery-queue
 
-ENTRYPOINT celery -A tasks worker --loglevel=info
+ENTRYPOINT celery -A tasks worker --uid=worker --loglevel=info

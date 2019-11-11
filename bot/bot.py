@@ -25,11 +25,11 @@ j = updater.job_queue
 ##############################
 # Utils
 
-def save_config(context):
+def save_config():
     logging.info("Saving configuration on file")
     json.dump(conf, open("./config.json","w"), indent=2)
 
-j.run_repeating(save_config, interval=10, first=10)
+#j.run_repeating(save_config, interval=60, first=10)
 
 def restricted(func):
     @wraps(func)
@@ -57,10 +57,12 @@ def send_update(chat_id, task_id, session_id):
         if res.state == states.PENDING:
             bot.send_message(chat_id=chat_id,text= "Waiting..")
         else:
+            output_file = res.result
             bot.send_message(chat_id=chat_id,
-                            text= "Done (session={})! {}".format(session_id, res.result))
+                            text= f"Done (session={session_id})!")
+            bot.send_document(chat_id=chat_id,
+                            document=open(output_file, "rb"))
             job.schedule_removal()
-
     return update
 
 
@@ -76,15 +78,16 @@ def incoming_job_message(update, context):
                     "conf_url": message.text
                     })
     context.bot.send_message(chat_id=chat_id, text="Started session: {}".format(session_id))
-    j.run_repeating(send_update(chat_id, task.id, session_id), interval=5, first=2)
+    j.run_repeating(send_update(chat_id, task.id, session_id), interval=10, first=5)
 
 @restricted
 def add_user(update, context):
     userid = context.args[0]
     conf["users"]["users"].append(userid)
+    save_config()
     context.bot.send_message(chat_id=update.message.chat_id, 
                 text=f"Added user {userid}")
-
+    
 
 ########################################
 # Handlers

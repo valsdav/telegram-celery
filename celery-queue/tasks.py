@@ -39,8 +39,8 @@ def clone_repo(url, dest, log=None):
 
 @celery.task(name='start_job')
 def start_job(user: str, session: int, conf_url: str) -> str:
-    # Create the folder in the users_code storage
-    session_basedir = "/storage/users_code/{}/{}".format(user, session)
+    # Create the folder in the users_sessions storage
+    session_basedir = "/storage/users_sessions/{}/{}".format(user, session)
     data_basedir = "/storage/datasets/{}".format(user)
     os.makedirs(session_basedir)
     os.makedirs(data_basedir, exist_ok=True)
@@ -71,33 +71,60 @@ def start_job(user: str, session: int, conf_url: str) -> str:
     code_basedir = f"{session_basedir}/code"
     clone_repo(conf["app"]["code"], code_basedir, log)
     docker_volumes[code_basedir] = {"bind":"/code", "mode":"rw"}
+
+    # Create output folder
+    output_basedir = f"{session_basedir}/output"
+    os.makedirs(output_basedir)
+    docker_volumes[output_basedir] = {"bind": f"/output", "mode":"rw"}
     
     # Create docker
     docker_image = conf["app"]["docker"]
     docker_command = conf["app"]["command"]
 
-    logs = docker_client.containers.run(   image=docker_image,
-                                                command=docker_command, 
-                                                volumes=docker_volumes,
-                                                working_dir="/code" )
-    return str(logs)
+    options = { 
+        "image":docker_image,
+        "command":docker_command, 
+        "volumes":docker_volumes,
+        "working_dir":"/code"
+    }
+    if "gpu" in conf["app"] and conf["app"]["gpu"]:
+        options["runtime"] = "nvidia"
+    
+    log.info(f"Launching docker with options: {options}")
 
+    logs = docker_client.containers.run( **options )
+
+    
+    # Save logs on disk
+    with open(f"{session_basedir}/docker.log","wb") as logs_out:
+        logs_out.write(logs)
+
+    log.info("Saved tar output")
+    log.close()
+    # Create tar with results
+    os.system(f"cd {session_basedir};tar zcf output.tar.gz docker.log \
+                        session.log output")
+    
+
+    return f"{session_basedir}/output.tar.gz"
 
 
 '''
- {
+ { 
   "name" : "Test",
   "datasets" : 
-        { "Full2017_v3": {
-                "baseurl": "http:issisisisi",
-                "files": ["Wjets.root",],
+        { "Full2017_v1": {
+                "baseurl": "https://dmapelli.web.cern.ch/dmapelli/latinos/numpy/Full2017_v1_190920/",
+                "files": ["Wjets.pkl"],
                 "refresh": true
-                },
-          "test_v2": {
-                "baseurl": "http:issisisisi",
-                 "files": []
-                 }
-        }
+                }
+        },
+  "app": {
+        "docker": "keras-base:0.1",
+        "code" : "https://github.com/valsdav/TestTrainingConf.git",
+        "command": "python test.py",
+        "gpu": true
+         }
         
 }
 '''
