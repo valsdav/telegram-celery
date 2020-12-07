@@ -1,6 +1,6 @@
 FROM tensorflow/tensorflow:latest-gpu-py3-jupyter
 
-RUN pip install keras pandas scikit-learn matplotlib numpy scipy h5py imblearn gpyopt python-telegram-bot
+RUN pip install keras pandas scikit-learn matplotlib numpy scipy h5py imblearn gpyopt python-telegram-bot shap 
 
 EXPOSE 8888
 

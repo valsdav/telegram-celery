@@ -1,0 +1,15 @@
+version: "3"
+services:
+  jupyter:
+    build:
+      context: ./keras-base
+      dockerfile: Dockerfile
+
+    volumes:
+      - /storage:/storage
+    runtime: nvidia
+    restart: always
+    ports:
+      - "8888:8888"
+
+  
